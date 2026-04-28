@@ -504,6 +504,8 @@ static void BM_MixedMiddle(benchmark::State &state) {
         for (int i = mid; i >= 0; i--) { dealloc(allocations[i]); }
         for (int i = mid + 1; i < operations; i++) { dealloc(allocations[i]); }
     }
+
+    balloc_teardown();
 }
 
 BENCHMARK(BM_MixedMiddle)->Range(1 << 8, 1 << 11);
