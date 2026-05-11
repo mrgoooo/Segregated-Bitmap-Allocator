@@ -6,6 +6,9 @@
  */
 
 #include <stddef.h>
+#include <string.h>
+#include <sys/mman.h>
+#include <stdio.h>
 
 // Global array of bitmap allocators
 struct bitmap_alloc *bitmap_allocators = NULL;

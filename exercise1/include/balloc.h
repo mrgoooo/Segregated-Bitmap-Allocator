@@ -8,9 +8,6 @@
 
 #include <stddef.h>
 #include <limits.h>
-#include <string.h>
-#include <sys/mman.h>
-#include <stdio.h>
 
 //! constant for number of bits per size_t
 #define NUM_BITS_SIZE_T (CHAR_BIT * sizeof(size_t))
