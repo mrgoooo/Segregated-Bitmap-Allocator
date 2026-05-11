@@ -72,10 +72,12 @@ void *alloc_block_in_bitmap(struct bitmap_alloc *alloc)
         }
     }
 
+    /*
     fprintf(stderr,
             "[ALLOC WARNING] alloc_block_in_bitmap: no free chunk available (chunk_size=%zu, bitmap=%zu)\n",
             chunk_size,
             alloc->occupied_areas);
+    */
 
     // end
     return NULL;
