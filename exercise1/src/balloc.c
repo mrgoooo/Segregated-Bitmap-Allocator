@@ -18,7 +18,34 @@ size_t num_bitmap_allocators = 0;
 
 void balloc_setup(void)
 {
-    num_bitmap_allocators = 3;
+
+    int slabs[] = {
+        16,
+        16,
+        16,
+        32,
+        32,
+        32,
+        32,
+        64,
+        64,
+        64,
+        64,
+        128,
+        128,
+        128,
+        128,
+        256,
+        512,
+        1024,
+        2048,
+        4096,
+        8192,
+        16384,
+
+    };
+
+    num_bitmap_allocators = sizeof(slabs) / sizeof(slabs[0]);
 
     bitmap_allocators = alloc_from_os(
         num_bitmap_allocators * sizeof(struct bitmap_alloc));
@@ -26,17 +53,12 @@ void balloc_setup(void)
     memset(bitmap_allocators, 0,
            num_bitmap_allocators * sizeof(struct bitmap_alloc));
 
-    bitmap_allocators[0].chunk_size = 16;
-    bitmap_allocators[0].memory = alloc_from_os(MEMORY_SIZE_CHUNK(16));
-    bitmap_allocators[0].occupied_areas = 0;
-
-    bitmap_allocators[1].chunk_size = 64;
-    bitmap_allocators[1].memory = alloc_from_os(MEMORY_SIZE_CHUNK(64));
-    bitmap_allocators[1].occupied_areas = 0;
-
-    bitmap_allocators[2].chunk_size = 10000;
-    bitmap_allocators[2].memory = alloc_from_os(MEMORY_SIZE_CHUNK(10000));
-    bitmap_allocators[2].occupied_areas = 0;
+    for (size_t i = 0; i < num_bitmap_allocators; ++i)
+    {
+        bitmap_allocators[i].chunk_size = slabs[i];
+        bitmap_allocators[i].memory = alloc_from_os(MEMORY_SIZE_CHUNK(slabs[i]));
+        bitmap_allocators[i].occupied_areas = 0;
+    }
 }
 void balloc_teardown(void)
 {
@@ -74,15 +96,13 @@ void *alloc_block_in_bitmap(struct bitmap_alloc *alloc)
             return (char *)alloc->memory + i * chunk_size;
         }
     }
-
     /*
     fprintf(stderr,
             "[ALLOC WARNING] alloc_block_in_bitmap: no free chunk available (chunk_size=%zu, bitmap=%zu)\n",
             chunk_size,
             alloc->occupied_areas);
-    */
+            */
 
-    // end
     return NULL;
 }
 
