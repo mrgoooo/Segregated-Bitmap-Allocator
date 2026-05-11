@@ -25,7 +25,7 @@
 
 /*!
  * \brief struct representing a bitmap allocator for a memory area
- *
+ * 
  * Each bitmap allocator manages a memory area divided into fixed-size chunks.
  * A bitmask tracks which chunks are allocated or free.
  */
@@ -55,7 +55,7 @@ void balloc_teardown(void);
 
 /*!
  * \brief allocate a chunk from a specific bitmap allocator
- *
+ * 
  * Finds a free chunk in the given allocator, marks it as occupied, and returns a pointer to it.
  * \param alloc the bitmap allocator to allocate from
  * \return pointer to the allocated chunk, or NULL if no free chunks are available
@@ -64,7 +64,7 @@ void *alloc_block_in_bitmap(struct bitmap_alloc *alloc);
 
 /*!
  * \brief deallocate a chunk in a bitmap allocator
- *
+ * 
  * Finds which chunk contains the given pointer and marks it as free.
  * \param alloc the bitmap allocator containing the chunk
  * \param object pointer to the memory to be freed
@@ -73,7 +73,7 @@ void dealloc_block_in_bitmap(struct bitmap_alloc *alloc, void *object);
 
 /*!
  * \brief allocate a new memory block from the operating system
- *
+ * 
  * \param size the size of the memory block to allocate
  * \return pointer to the allocated memory, or NULL if allocation failed
  * \attention the os usually expects memory request of certain sizes...
@@ -82,7 +82,7 @@ void *alloc_from_os(size_t size);
 
 /*!
  * \brief deallocate memory back to the operating system
- *
+ * 
  * \param memory pointer to the memory to be freed
  * \param size size of the memory to be freed
  */
@@ -90,7 +90,7 @@ void dealloc_to_os(void *memory, size_t size);
 
 /*!
  * \brief user-facing API to allocate memory
- *
+ * 
  * Allocates memory of at least the requested size, potentially using an existing
  * bitmap allocator or creating a new one if necessary.
  * \param size number of bytes to be (at least) allocated
@@ -101,7 +101,7 @@ void *alloc(size_t size);
 
 /*!
  * \brief user-facing API to free previously allocated memory
- *
+ * 
  * \param memory pointer to the memory to be freed
  * \attention similarly to free(), you need to gracefully handle NULL
  */
