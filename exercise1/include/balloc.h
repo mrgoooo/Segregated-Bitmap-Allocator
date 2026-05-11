@@ -9,6 +9,7 @@
 #include <stddef.h>
 #include <limits.h>
 
+
 //! constant for number of bits per size_t
 #define NUM_BITS_SIZE_T (CHAR_BIT * sizeof(size_t))
 //! calculate the size of memory managed by one bitmap_alloc
