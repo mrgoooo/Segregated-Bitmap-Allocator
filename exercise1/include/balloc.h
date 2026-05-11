@@ -29,8 +29,7 @@
  * Each bitmap allocator manages a memory area divided into fixed-size chunks.
  * A bitmask tracks which chunks are allocated or free.
  */
-struct bitmap_alloc
-{
+struct bitmap_alloc {
     //! size of each chunk in the memory area
     size_t chunk_size;
 
