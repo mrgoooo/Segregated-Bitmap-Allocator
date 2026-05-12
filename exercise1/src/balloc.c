@@ -9,6 +9,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <stdio.h>
+#include <stdint.h>
 
 // Global array of bitmap allocators
 struct bitmap_alloc *bitmap_allocators = NULL;
@@ -16,24 +17,25 @@ struct bitmap_alloc *bitmap_allocators = NULL;
 // Number of bitmap allocators in the global array
 size_t num_bitmap_allocators = 0;
 
+static const size_t slabs[] = {
+    8, 16, 32, 64, 128, 256,
+    512, 1024, 2048, 4096,
+    8192, 16384};
+
+size_t closest_slab(size_t size)
+{
+    for (size_t i = 0; i < sizeof(slabs) / sizeof(slabs[0]); i++)
+    {
+        if (size <= slabs[i])
+            return slabs[i];
+    }
+    return SIZE_MAX;
+}
+
 void balloc_setup(void)
 {
 
     size_t total = 0;
-    int slabs[] = {
-        16,
-        32,
-        64,
-        128,
-        256,
-        512,
-        1024,
-        2048,
-        4096,
-        8192,
-        16384,
-
-    };
 
     num_bitmap_allocators = sizeof(slabs) / sizeof(slabs[0]);
 
@@ -88,14 +90,14 @@ void *alloc_block_in_bitmap(struct bitmap_alloc *alloc)
     alloc->occupied_areas |= ((size_t)1 << i);
 
     return (char *)alloc->memory + i * chunk_size;
-    /*
-    fprintf(stderr,
+
+    /*fprintf(stderr,
             "[ALLOC WARNING] alloc_block_in_bitmap: no free chunk available (chunk_size=%zu, bitmap=%zu)\n",
             chunk_size,
             alloc->occupied_areas);
-            */
 
     return NULL;
+    */
 }
 
 void dealloc_block_in_bitmap(struct bitmap_alloc *alloc, void *object)
@@ -170,7 +172,10 @@ void *alloc(size_t size)
         alloc_from_os(new_count * sizeof(struct bitmap_alloc));
 
     if (!new_arr)
+    {
+        printf("Failed to allocate memory for new bitmap allocator array\n");
         return NULL;
+    }
 
     memcpy(new_arr,
            bitmap_allocators,
@@ -183,9 +188,13 @@ void *alloc(size_t size)
 
     struct bitmap_alloc *slab = &bitmap_allocators[num_bitmap_allocators];
 
-    slab->chunk_size = size;
+    // slab->chunk_size = size;
+    size_t closest_slab_value = closest_slab(size);
+    closest_slab_value = (closest_slab_value != SIZE_MAX) ? closest_slab_value : size;
+
+    slab->chunk_size = closest_slab_value;
     slab->occupied_areas = 0;
-    slab->memory = alloc_from_os(MEMORY_SIZE_CHUNK(size));
+    slab->memory = alloc_from_os(MEMORY_SIZE_CHUNK(closest_slab_value));
 
     num_bitmap_allocators++;
 
