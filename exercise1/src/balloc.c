@@ -22,12 +22,6 @@ static const size_t slabs[] = {
     512, 1024, 2048, 4096,
     8192, 16384};
 
-struct allocator_header
-{
-    struct bitmap_alloc *owner;
-    uint8_t index;
-};
-
 size_t closest_slab(size_t size)
 {
     for (size_t i = 0; i < sizeof(slabs) / sizeof(slabs[0]); i++)
@@ -53,12 +47,9 @@ void balloc_setup(void)
 
     for (size_t i = 0; i < num_bitmap_allocators; ++i)
     {
-
         bitmap_allocators[i].chunk_size = slabs[i];
-        // with owner 8 bytes and 1 byte for position inside the slap
-        bitmap_allocators[i].memory = alloc_from_os(MEMORY_SIZE_CHUNK(slabs[i]) + sizeof(struct allocator_header) * NUM_BITS_SIZE_T);
+        bitmap_allocators[i].memory = alloc_from_os(MEMORY_SIZE_CHUNK(slabs[i]));
         bitmap_allocators[i].occupied_areas = 0;
-
         total += MEMORY_SIZE_CHUNK(slabs[i]);
     }
     // printf("TOTAL: %zu bytes\n", total);
@@ -98,17 +89,7 @@ void *alloc_block_in_bitmap(struct bitmap_alloc *alloc)
 
     alloc->occupied_areas |= ((size_t)1 << i);
 
-    char *base = (char *)alloc->memory;
-
-    size_t real_size = sizeof(struct allocator_header) + chunk_size;
-
-    struct allocator_header *hdr =
-        (struct allocator_header *)(base + i * real_size);
-
-    hdr->owner = alloc;
-    hdr->index = (uint8_t)i;
-
-    return (void *)(hdr + 1);
+    return (char *)alloc->memory + i * chunk_size;
 
     /*fprintf(stderr,
             "[ALLOC WARNING] alloc_block_in_bitmap: no free chunk available (chunk_size=%zu, bitmap=%zu)\n",
@@ -121,13 +102,22 @@ void *alloc_block_in_bitmap(struct bitmap_alloc *alloc)
 
 void dealloc_block_in_bitmap(struct bitmap_alloc *alloc, void *object)
 {
-    // size_t chunk_size = alloc->chunk_size;
+    size_t chunk_size = alloc->chunk_size;
 
-    struct allocator_header *hdr = (struct allocator_header *)((char *)object - sizeof(struct allocator_header));
+    // dif in bytes
+    ptrdiff_t diff = (char *)object - (char *)alloc->memory;
 
-    size_t index = hdr->index;
+    // max diff in bytes
+    ptrdiff_t max = MEMORY_SIZE_CHUNK(chunk_size) - chunk_size;
 
-    alloc->occupied_areas &= ~((size_t)1 << index);
+    if (diff < 0)
+        return;
+    if (diff > max)
+        return;
+    if (diff % chunk_size != 0)
+        return;
+
+    alloc->occupied_areas = alloc->occupied_areas & ~((size_t)1 << diff / chunk_size);
 }
 
 void *alloc_from_os(size_t size)
@@ -204,7 +194,7 @@ void *alloc(size_t size)
 
     slab->chunk_size = closest_slab_value;
     slab->occupied_areas = 0;
-    slab->memory = alloc_from_os(MEMORY_SIZE_CHUNK(closest_slab_value) + sizeof(struct allocator_header) * NUM_BITS_SIZE_T);
+    slab->memory = alloc_from_os(MEMORY_SIZE_CHUNK(closest_slab_value));
 
     num_bitmap_allocators++;
 
@@ -216,8 +206,20 @@ void dealloc(void *memory)
     if (!memory)
         return;
 
-    struct allocator_header *hdr = (struct allocator_header *)((char *)memory - sizeof(struct allocator_header));
-    struct bitmap_alloc *alloc = hdr->owner;
+    for (size_t i = 0; i < num_bitmap_allocators; i++)
+    {
+        struct bitmap_alloc *alloc = &bitmap_allocators[i];
 
-    dealloc_block_in_bitmap(alloc, memory);
+        if (!alloc->memory)
+            continue;
+
+        char *start = (char *)alloc->memory;
+        char *end = start + MEMORY_SIZE_CHUNK(alloc->chunk_size);
+
+        if ((char *)memory >= start && (char *)memory < end)
+        {
+            dealloc_block_in_bitmap(alloc, memory);
+            return;
+        }
+    }
 }
