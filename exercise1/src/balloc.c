@@ -21,19 +21,8 @@ void balloc_setup(void)
 
     int slabs[] = {
         16,
-        16,
-        16,
-        32,
-        32,
-        32,
         32,
         64,
-        64,
-        64,
-        64,
-        128,
-        128,
-        128,
         128,
         256,
         512,
@@ -83,7 +72,6 @@ void balloc_teardown(void)
 
 void *alloc_block_in_bitmap(struct bitmap_alloc *alloc)
 {
-    // TODO: Implement
 
     size_t chunk_size = alloc->chunk_size;
 
@@ -151,7 +139,11 @@ void dealloc_to_os(void *memory, size_t size)
 }
 
 void *alloc(size_t size)
+
 {
+    if (size == 0)
+        return NULL;
+
     for (size_t i = 0; i < num_bitmap_allocators; i++)
     {
         if (size <= bitmap_allocators[i].chunk_size)
@@ -168,7 +160,32 @@ void *alloc(size_t size)
             }
         }
     }
-    return NULL;
+    size_t new_count = num_bitmap_allocators + 1;
+
+    struct bitmap_alloc *new_arr =
+        alloc_from_os(new_count * sizeof(struct bitmap_alloc));
+
+    if (!new_arr)
+        return NULL;
+
+    memcpy(new_arr,
+           bitmap_allocators,
+           num_bitmap_allocators * sizeof(struct bitmap_alloc));
+
+    dealloc_to_os(bitmap_allocators,
+                  num_bitmap_allocators * sizeof(struct bitmap_alloc));
+
+    bitmap_allocators = new_arr;
+
+    struct bitmap_alloc *slab = &bitmap_allocators[num_bitmap_allocators];
+
+    slab->chunk_size = size;
+    slab->occupied_areas = 0;
+    slab->memory = alloc_from_os(MEMORY_SIZE_CHUNK(size));
+
+    num_bitmap_allocators++;
+
+    return alloc_block_in_bitmap(slab);
 }
 
 void dealloc(void *memory)
