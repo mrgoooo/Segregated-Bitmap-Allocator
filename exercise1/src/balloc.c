@@ -19,6 +19,7 @@ size_t num_bitmap_allocators = 0;
 void balloc_setup(void)
 {
 
+    size_t total = 0;
     int slabs[] = {
         16,
         32,
@@ -47,7 +48,9 @@ void balloc_setup(void)
         bitmap_allocators[i].chunk_size = slabs[i];
         bitmap_allocators[i].memory = alloc_from_os(MEMORY_SIZE_CHUNK(slabs[i]));
         bitmap_allocators[i].occupied_areas = 0;
+        total += MEMORY_SIZE_CHUNK(slabs[i]);
     }
+    // printf("TOTAL: %zu bytes\n", total);
 }
 void balloc_teardown(void)
 {
@@ -75,15 +78,16 @@ void *alloc_block_in_bitmap(struct bitmap_alloc *alloc)
 
     size_t chunk_size = alloc->chunk_size;
 
-    for (size_t i = 0; i <= NUM_BITS_SIZE_T - 1; ++i)
-    {
-        if ((alloc->occupied_areas & ((size_t)1 << i)) == 0)
-        {
-            alloc->occupied_areas |= ((size_t)1 << i);
+    size_t free_mask = ~alloc->occupied_areas;
 
-            return (char *)alloc->memory + i * chunk_size;
-        }
-    }
+    if (free_mask == 0)
+        return NULL;
+
+    size_t i = __builtin_ctzll(free_mask);
+
+    alloc->occupied_areas |= ((size_t)1 << i);
+
+    return (char *)alloc->memory + i * chunk_size;
     /*
     fprintf(stderr,
             "[ALLOC WARNING] alloc_block_in_bitmap: no free chunk available (chunk_size=%zu, bitmap=%zu)\n",
