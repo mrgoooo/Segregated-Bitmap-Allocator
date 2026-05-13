@@ -10,6 +10,8 @@
 #include <sys/mman.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <math.h>
+#include <stdlib.h>
 
 // Global array of bitmap allocators
 struct bitmap_alloc *bitmap_allocators = NULL;
@@ -21,6 +23,20 @@ static const size_t slabs[] = {
     8, 16, 32, 64, 128, 256,
     512, 1024, 2048, 4096,
     8192, 16384};
+
+int compare_bitmap_allocs(const void *a, const void *b)
+{
+    const struct bitmap_alloc *aa = a;
+    const struct bitmap_alloc *bb = b;
+
+    if (aa->memory < bb->memory)
+        return -1;
+
+    if (aa->memory > bb->memory)
+        return 1;
+
+    return 0;
+}
 
 size_t closest_slab(size_t size)
 {
@@ -52,6 +68,11 @@ void balloc_setup(void)
         bitmap_allocators[i].occupied_areas = 0;
         total += MEMORY_SIZE_CHUNK(slabs[i]);
     }
+
+    qsort(bitmap_allocators,
+          num_bitmap_allocators,
+          sizeof(struct bitmap_alloc),
+          compare_bitmap_allocs);
     // printf("TOTAL: %zu bytes\n", total);
 }
 void balloc_teardown(void)
@@ -133,6 +154,7 @@ void *alloc_from_os(size_t size)
     if (ptr == MAP_FAILED)
         return NULL;
 
+    // printf("Allocated %zu bytes from OS at %p\n", size, ptr);
     return ptr;
 }
 
@@ -150,7 +172,9 @@ void *alloc(size_t size)
     if (size == 0)
         return NULL;
 
-    for (size_t i = 0; i < num_bitmap_allocators; i++)
+    size_t index = __builtin_ctz(size);
+
+    for (size_t i = index; i < num_bitmap_allocators; i++)
     {
         if (size <= bitmap_allocators[i].chunk_size)
         {
@@ -198,28 +222,52 @@ void *alloc(size_t size)
 
     num_bitmap_allocators++;
 
-    return alloc_block_in_bitmap(slab);
+    void *result = alloc_block_in_bitmap(slab);
+    qsort(bitmap_allocators,
+          num_bitmap_allocators,
+          sizeof(struct bitmap_alloc),
+          compare_bitmap_allocs);
+
+    return result;
 }
 
 void dealloc(void *memory)
 {
-    if (!memory)
+    if (!memory || num_bitmap_allocators == 0)
         return;
 
-    for (size_t i = 0; i < num_bitmap_allocators; i++)
+    size_t left = 0;
+    size_t right = num_bitmap_allocators;
+
+    while (left < right)
     {
-        struct bitmap_alloc *alloc = &bitmap_allocators[i];
+        size_t mid = left + (right - left) / 2;
+        struct bitmap_alloc *alloc = &bitmap_allocators[mid];
 
         if (!alloc->memory)
+        {
+            left = mid + 1;
             continue;
+        }
 
         char *start = (char *)alloc->memory;
         char *end = start + MEMORY_SIZE_CHUNK(alloc->chunk_size);
+        char *ptr = (char *)memory;
 
-        if ((char *)memory >= start && (char *)memory < end)
+        if (ptr >= start && ptr < end)
         {
             dealloc_block_in_bitmap(alloc, memory);
             return;
+        }
+
+        if (ptr < start)
+        {
+            right = mid;
+        }
+
+        else
+        {
+            left = mid + 1;
         }
     }
 }
