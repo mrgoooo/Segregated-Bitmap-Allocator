@@ -107,9 +107,3 @@ or by executing this `bash`-onliner:
 ```
 find build/tests/* -prune -type f -executable '(' -exec {} ';' -or -quit ')'
 ```
-
-If you want to build with checks for out of bounds error and undefined behaviour (very useful while debugging), you can check the `tests/CMakeLists.txt` file for how to do that.
-
-## Code Structure
-
-Your implementation goes in `balloc.c`.
